@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wer bin ich? – Host-Ansicht</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .hidden {
+            display: none;
+        }
+        input, button, textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .player-card {
+            background: #f9f9f9;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        #qrCode {
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Host-Ansicht -->
+        <div id="hostView">
+            <h2>Host-Ansicht</h2>
+            <p>Lade Spieler ein, indem sie diesen QR-Code scannen:</p>
+            <div id="qrCode"></div>
+            <button onclick="startGame()" id="startButton">Spiel starten</button>
+            <div id="playerList"></div>
+        </div>
+
+        <!-- Spielerregistrierung -->
+        <div id="playerView" class="hidden">
+            <h2>Spielerregistrierung</h2>
+            <input type="text" id="playerName" placeholder="Dein Name">
+            <textarea id="playerDescription" placeholder="Beschreibe dich selbst"></textarea>
+            <input type="number" id="stiffLength" placeholder="Länge steif (cm)">
+            <input type="number" id="softLength" placeholder="Länge schlaff (cm)">
+            <select id="curve">
+                <option value="gerade">Gerade</option>
+                <option value="leicht gekrümmt">Leicht gekrümmt</option>
+                <option value="stark gekrümmt">Stark gekrümmt</option>
+            </select>
+            <select id="bush">
+                <option value="rasiert">Rasiert</option>
+                <option value="buschig">Buschig</option>
+            </select>
+            <select id="thickness">
+                <option value="dünn">Dünn</option>
+                <option value="mittel">Mittel</option>
+                <option value="dick">Dick</option>
+            </select>
+            <button onclick="registerPlayer()">Registrieren</button>
+        </div>
+
+        <!-- Spielphase -->
+        <div id="gamePhase" class="hidden">
+            <h2>Wer bin ich?</h2>
+            <input type="text" id="guesserName" placeholder="Dein Name">
+            <div id="matchingSection"></div>
+            <button onclick="submitAnswers()">Antworten abgeben</button>
+            <p id="resultMessage"></p>
+        </div>
+
+        <!-- Ergebnis-Ansicht -->
+        <div id="resultView" class="hidden">
+            <h2>Ergebnisse</h2>
+            <div id="hostResults"></div>
+        </div>
+    </div>
+
+    <!-- QR-Code-Bibliothek -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        let players = [];
+        let gameStarted = false;
+
+        // QR-Code generieren
+        function generateQRCode() {
+            const qrCodeElement = document.getElementById('qrCode');
+            qrCodeElement.innerHTML = ''; // Alten QR-Code löschen
+
+            // GitHub Pages-URL
+            const githubPagesUrl = "https://mikaboy18.github.io/Quizz/";
+            new QRCode(qrCodeElement, {
+                text: githubPagesUrl,
+                width: 200,
+                height: 200
+            });
+        }
+
+        // Spielerregistrierung
+        function registerPlayer() {
+            const name = document.getElementById('playerName').value;
+            const description = document.getElementById('playerDescription').value;
+            const stiffLength = document.getElementById('stiffLength').value;
+            const softLength = document.getElementById('softLength').value;
+            const curve = document.getElementById('curve').value;
+            const bush = document.getElementById('bush').value;
+            const thickness = document.getElementById('thickness').value;
+
+            if (name && description) {
+                const player = {
+                    name,
+                    description,
+                    stiffLength,
+                    softLength,
+                    curve,
+                    bush,
+                    thickness
+                };
+
+                players.push(player);
+                alert(`Spieler ${name} registriert!`);
+                updatePlayerList();
+                document.getElementById('playerName').value = '';
+                document.getElementById('playerDescription').value = '';
+                document.getElementById('stiffLength').value = '';
+                document.getElementById('softLength').value = '';
+            } else {
+                alert("Bitte Name und Beschreibung eingeben!");
+            }
+        }
+
+        // Spielerliste aktualisieren
+        function updatePlayerList() {
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '<h3>Registrierte Spieler:</h3>';
+            players.forEach(player => {
+                playerList.innerHTML += `<p>${player.name}</p>`;
+            });
+        }
+
+        // Spiel starten
+        function startGame() {
+            if (players.length < 2) {
+                alert("Mindestens 2 Spieler erforderlich!");
+                return;
+            }
+
+            gameStarted = true;
+            document.getElementById('hostView').classList.add('hidden');
+            document.getElementById('gamePhase').classList.remove('hidden');
+            shufflePlayers();
+        }
+
+        // Spieler mischen
+        function shufflePlayers() {
+            players = players.sort(() => Math.random() - 0.5);
+            const matchingSection = document.getElementById('matchingSection');
+            matchingSection.innerHTML = '';
+
+            players.forEach((player, index) => {
+                matchingSection.innerHTML += `
+                    <div class="player-card">
+                        <p><strong>Beschreibung:</strong> ${player.description}</p>
+                        <p>Steif: ${player.stiffLength} cm, Schlaff: ${player.softLength} cm</p>
+                        <p>Kurve: ${player.curve}, Busch: ${player.bush}, Dicke: ${player.thickness}</p>
+                        <select id="guess${index}">
+                            <option value="">Wähle einen Spieler</option>
+                            ${players.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            });
+        }
+
+        // Antworten abgeben
+        function submitAnswers() {
+            const guesserName = document.getElementById('guesserName').value;
+            if (!guesserName) {
+                alert("Bitte gib deinen Namen ein!");
+                return;
+            }
+
+            const playerAnswers = [];
+            players.forEach((player, index) => {
+                const selected = document.getElementById(`guess${index}`).value;
+                playerAnswers.push({
+                    guesserName,
+                    description: player.description,
+                    guessedPlayer: selected,
+                    correctPlayer: player.name
+                });
+            });
+
+            // Ergebnis-Ansicht anzeigen
+            document.getElementById('gamePhase').classList.add('hidden');
+            document.getElementById('resultView').classList.remove('hidden');
+            showHostResults(playerAnswers);
+        }
+
+        // Ergebnisse für den Host anzeigen
+        function showHostResults(playerAnswers) {
+            const hostResults = document.getElementById('hostResults');
+            hostResults.innerHTML = '';
+
+            playerAnswers.forEach((answer, index) => {
+                const isCorrect = answer.guessedPlayer === answer.correctPlayer;
+                hostResults.innerHTML += `
+                    <div class="player-card">
+                        <p><strong>Rater:</strong> ${answer.guesserName}</p>
+                        <p><strong>Beschreibung:</strong> ${answer.description}</p>
+                        <p>Geraten: ${answer.guessedPlayer}</p>
+                        <p>Richtig: ${answer.correctPlayer}</p>
+                        <p style="color: ${isCorrect ? 'green' : 'red'};">${isCorrect ? 'Richtig' : 'Falsch'}</p>
+                    </div>
+                `;
+            });
+        }
+
+        // Initialisierung
+        generateQRCode();
+    </script>
+</body>
+</html>
